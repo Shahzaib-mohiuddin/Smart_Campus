@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'login_screen.dart';
+import 'profile_setup_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -116,25 +117,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (!mounted) return;
 
       // Mock registration success for frontend development
-      // TODO: Navigate to Profile Setup Screen once created
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully!'),
-          backgroundColor: Colors.green,
+      // Navigate to Profile Setup Screen
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const ProfileSetupScreen(),
         ),
       );
-
-      // Clear form
-      _fullNameController.clear();
-      _emailController.clear();
-      _rollNumberController.clear();
-      _passwordController.clear();
-      _confirmPasswordController.clear();
-      setState(() {
-        _selectedDepartment = null;
-        _selectedSemester = null;
-        _agreeToTerms = false;
-      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
