@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'dashboard_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -71,18 +72,16 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Navigate with smooth transition
     if (isLoggedIn) {
-      // NOTE: Dashboard screen not yet implemented - part of frontend development
-      // TODO: Navigate to Dashboard screen once created (Frontend - no backend needed)
-      // Navigator.pushReplacement(
-      //   context,
-      //   PageRouteBuilder(
-      //     pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
-      //     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      //       return FadeTransition(opacity: animation, child: child);
-      //     },
-      //     transitionDuration: const Duration(milliseconds: 300),
-      //   ),
-      // );
+      Navigator.pushReplacement(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => const DashboardScreen(),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+            return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 300),
+        ),
+      );
     } else {
       Navigator.pushReplacement(
         context,

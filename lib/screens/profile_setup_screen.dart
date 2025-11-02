@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dashboard_screen.dart';
 
 class ProfileSetupScreen extends StatefulWidget {
   const ProfileSetupScreen({super.key});
@@ -152,19 +153,12 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
       if (!mounted) return;
 
       // Mock profile setup success
-      // TODO: Navigate to Dashboard screen once created
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Profile setup completed successfully!'),
-          backgroundColor: Colors.green,
-        ),
+      // Navigate to Dashboard
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
       );
-
-      // Navigate to Dashboard (placeholder for now)
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(builder: (context) => const DashboardScreen()),
-      // );
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -181,22 +175,14 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
 
   Future<void> _handleSkip() async {
     // NOTE: Backend/Firebase implementation deferred
-    // TODO: Navigate to Dashboard screen once created
+    // Navigate to Dashboard
     
     if (!mounted) return;
     
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('You can complete your profile later'),
-        duration: Duration(seconds: 2),
-      ),
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const DashboardScreen()),
     );
-
-    // Navigate to Dashboard (placeholder for now)
-    // Navigator.pushReplacement(
-    //   context,
-    //   MaterialPageRoute(builder: (context) => const DashboardScreen()),
-    // );
   }
 
   // Get selected interests (for future backend integration)

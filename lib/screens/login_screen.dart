@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
+import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -42,12 +43,12 @@ class _LoginScreenState extends State<LoginScreen> {
         // Set user as logged in (local storage only - no backend)
         await AuthService().setLoggedIn(true);
 
-        // Navigate to Dashboard (Frontend - to be implemented)
-        // TODO: Navigate to Dashboard screen once created
+        // Navigate to Dashboard
         if (!mounted) return;
-        ScaffoldMessenger.of(
+        Navigator.pushReplacement(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Login Successful!')));
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
       } else {
         setState(() {
           _errorMessage = 'Invalid email or password';
