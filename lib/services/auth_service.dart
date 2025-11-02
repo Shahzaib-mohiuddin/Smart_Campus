@@ -1,5 +1,8 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Authentication Service (Frontend Only)
+/// Uses local storage (SharedPreferences) for session management
+/// Backend/Firebase integration will be added after frontend completion
 class AuthService {
   static const String _keyIsLoggedIn = 'isLoggedIn';
   static final AuthService _instance = AuthService._internal();

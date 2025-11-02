@@ -71,7 +71,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     // Navigate with smooth transition
     if (isLoggedIn) {
-      // TODO: Navigate to Dashboard once implemented
+      // NOTE: Dashboard screen not yet implemented - part of frontend development
+      // TODO: Navigate to Dashboard screen once created (Frontend - no backend needed)
       // Navigator.pushReplacement(
       //   context,
       //   PageRouteBuilder(

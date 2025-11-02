@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,19 +30,20 @@ class _LoginScreenState extends State<LoginScreen> {
       // Simulate network delay
       await Future.delayed(const Duration(seconds: 2));
 
-      // TODO: Implement actual login with Firebase
+      // NOTE: Backend/Firebase implementation deferred - focusing on frontend first
+      // TODO: Implement actual login with Firebase (after frontend completion)
       final email = _emailController.text.trim();
       final password = _passwordController.text;
 
-      // Temporary validation until Firebase is implemented
+      // Temporary mock validation for frontend development
       if (email == 'ali@university.edu.pk' && password == 'password123') {
         if (!mounted) return;
 
-        // Set user as logged in
+        // Set user as logged in (local storage only - no backend)
         await AuthService().setLoggedIn(true);
 
-        // Navigate to Dashboard
-        // TODO: Replace with actual dashboard navigation
+        // Navigate to Dashboard (Frontend - to be implemented)
+        // TODO: Navigate to Dashboard screen once created
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
@@ -183,10 +185,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Forgot Password
                 Align(
                   alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: () {
-                      // TODO: Implement forgot password
-                    },
+                    child: TextButton(
+                      onPressed: () {
+                        // TODO: Implement forgot password screen (Frontend only)
+                      },
                     child: Text(
                       'Forgot Password?',
                       style: TextStyle(color: colorScheme.primary),
@@ -263,7 +265,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Google Login Button
                 OutlinedButton.icon(
                   onPressed: () {
-                    // TODO: Implement Google Sign In
+                    // TODO: Implement Google Sign In UI (Frontend - backend later)
                   },
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
@@ -305,7 +307,12 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     TextButton(
                       onPressed: () {
-                        // TODO: Navigate to Register Screen
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterScreen(),
+                          ),
+                        );
                       },
                       child: Text(
                         'Register Here',
