@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'schedule_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -37,30 +38,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}, ${now.year}';
   }
 
-  // Mock classes data
-  final List<Map<String, dynamic>> _todayClasses = [
-    {
-      'title': 'Data Structures',
-      'professor': 'Prof. Ahmed',
-      'time': '9:00-10:30 AM',
-      'room': 'Room 401',
-      'color': Colors.blue,
-    },
-    {
-      'title': 'Algorithm Design',
-      'professor': 'Prof. Sara',
-      'time': '11:00-12:30 PM',
-      'room': 'Room 302',
-      'color': Colors.green,
-    },
-    {
-      'title': 'Database Systems',
-      'professor': 'Prof. Khan',
-      'time': '2:00-3:30 PM',
-      'room': 'Room 205',
-      'color': Colors.orange,
-    },
-  ];
+  // Mock classes data - will be filtered based on today
+  List<Map<String, dynamic>> get _todayClasses {
+    final now = DateTime.now();
+    final weekday = now.weekday; // 1 = Monday, 7 = Sunday
+    
+    // No classes on weekends (Saturday = 6, Sunday = 7)
+    if (weekday == 6 || weekday == 7) {
+      return [];
+    }
+    
+    // Show classes on weekdays (Monday-Friday: weekday 1-5)
+    return [
+      {
+        'title': 'Data Structures',
+        'professor': 'Prof. Ahmed',
+        'time': '9:00-10:30 AM',
+        'room': 'Room 401',
+        'color': Colors.blue,
+      },
+      {
+        'title': 'Algorithm Design',
+        'professor': 'Prof. Sara',
+        'time': '11:00-12:30 PM',
+        'room': 'Room 302',
+        'color': Colors.green,
+      },
+      {
+        'title': 'Database Systems',
+        'professor': 'Prof. Khan',
+        'time': '2:00-3:30 PM',
+        'room': 'Room 205',
+        'color': Colors.orange,
+      },
+    ];
+  }
 
   // Mock events data
   final List<Map<String, dynamic>> _upcomingEvents = [
@@ -299,7 +311,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   ) {
     return GestureDetector(
       onTap: () {
-        // TODO: Navigate to respective screen
+        // Navigate to respective screen
+        if (title.contains('Schedule')) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ScheduleScreen()),
+          );
+        } else {
+          // TODO: Navigate to other screens (Library, Events, etc.)
+        }
       },
       child: Container(
         decoration: BoxDecoration(
@@ -335,6 +355,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTodayClasses(ColorScheme colorScheme) {
+    final classes = _todayClasses;
+    final now = DateTime.now();
+    final weekday = now.weekday; // 1 = Monday, 7 = Sunday
+    final isWeekend = weekday == 6 || weekday == 7;
+    
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
@@ -344,26 +369,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Today's Classes (${_todayClasses.length})",
+                "Today's Classes${classes.isNotEmpty ? ' (${classes.length})' : ''}",
                 style: GoogleFonts.inter(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
                   color: colorScheme.onSurface,
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  // TODO: Navigate to full schedule
-                },
-                child: const Text('View All →'),
-              ),
+              if (classes.isNotEmpty)
+                TextButton(
+                  onPressed: () {
+                    // TODO: Navigate to full schedule
+                  },
+                  child: const Text('View All →'),
+                ),
             ],
           ),
           const SizedBox(height: 16),
-          ..._todayClasses.map((classItem) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildClassCard(classItem, colorScheme),
-              )),
+          if (isWeekend)
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: colorScheme.outline.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.event_busy_outlined,
+                      size: 48,
+                      color: colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      weekday == 6 
+                          ? 'No classes on Saturday' 
+                          : 'No classes on Sunday',
+                      style: GoogleFonts.inter(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: colorScheme.onSurface.withValues(alpha: 0.8),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      weekday == 6
+                          ? 'Enjoy your weekend! 😊'
+                          : 'Enjoy your day off! 😊',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else
+            ...classes.map((classItem) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildClassCard(classItem, colorScheme),
+                )),
         ],
       ),
     );
@@ -596,7 +666,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           _selectedIndex = index;
         });
-        // TODO: Navigate to respective screen based on index
+        
+        // Navigate to respective screen based on index
+        switch (index) {
+          case 0: // Home - already on dashboard
+            break;
+          case 1: // Schedule
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const ScheduleScreen()),
+            ).then((_) {
+              // Reset to home when coming back
+              setState(() {
+                _selectedIndex = 0;
+              });
+            });
+            break;
+          case 2: // Library
+            // TODO: Navigate to library screen
+            break;
+          case 3: // Events
+            // TODO: Navigate to events screen
+            break;
+          case 4: // More
+            // TODO: Navigate to more screen
+            break;
+        }
       },
       selectedItemColor: colorScheme.primary,
       unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.5),
