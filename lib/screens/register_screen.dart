@@ -1,7 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import '../services/auth_service.dart';
 import 'login_screen.dart';
-import 'profile_setup_screen.dart';
+import 'dashboard_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,18 +20,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _fullNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _rollNumberController = TextEditingController();
+  final _contactNumberController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
-  bool _isLoading = false;
-  String? _errorMessage;
-  bool _obscurePassword = true;
-  bool _obscureConfirmPassword = true;
-  bool _agreeToTerms = false;
-  
-  String? _selectedDepartment;
-  String? _selectedSemester;
-
+  final ImagePicker _imagePicker = ImagePicker();
   final List<String> _departments = [
     'Computer Science',
     'Electrical Engineering',
@@ -37,59 +34,186 @@ class _RegisterScreenState extends State<RegisterScreen> {
     'Physics',
     'Chemistry',
   ];
-
   final List<String> _semesters = ['1', '2', '3', '4', '5', '6', '7', '8'];
+
+  bool _isLoading = false;
+  String? _errorMessage;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
+  bool _agreeToTerms = false;
+  File? _profileImage;
+  List<String> _selectedInterests = [];
+  String? _selectedDepartment;
+  String? _selectedSemester;
 
   @override
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
     _rollNumberController.dispose();
+    _contactNumberController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  String _getPasswordStrength(String password) {
-    if (password.isEmpty) return 'Weak';
-    
-    int strength = 0;
-    if (password.length >= 8) strength++;
-    if (password.contains(RegExp(r'[a-z]'))) strength++;
-    if (password.contains(RegExp(r'[A-Z]'))) strength++;
-    if (password.contains(RegExp(r'[0-9]'))) strength++;
-    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) strength++;
+  Future<void> _pickImage() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+        maxWidth: 512,
+        maxHeight: 512,
+      );
 
-    if (strength <= 2) return 'Weak';
-    if (strength <= 4) return 'Medium';
-    return 'Strong';
-  }
-
-  Color _getPasswordStrengthColor(String strength) {
-    switch (strength) {
-      case 'Weak':
-        return Colors.red;
-      case 'Medium':
-        return Colors.orange;
-      case 'Strong':
-        return Colors.green;
-      default:
-        return Colors.grey;
+      if (image != null) {
+        setState(() {
+          _profileImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error picking image: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  double _getPasswordStrengthValue(String password) {
-    final strength = _getPasswordStrength(password);
-    switch (strength) {
-      case 'Weak':
-        return 0.33;
-      case 'Medium':
-        return 0.66;
-      case 'Strong':
-        return 1.0;
-      default:
-        return 0.0;
+  Future<void> _takePhoto() async {
+    try {
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+        maxWidth: 512,
+        maxHeight: 512,
+      );
+
+      if (image != null) {
+        setState(() {
+          _profileImage = File(image.path);
+        });
+      }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error taking photo: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
+  }
+
+  Future<void> _showImagePickerOptions() async {
+    await showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('Choose from Gallery'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage();
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take Photo'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _takePhoto();
+                },
+              ),
+              if (_profileImage != null)
+                ListTile(
+                  leading: const Icon(Icons.delete, color: Colors.red),
+                  title: const Text(
+                    'Remove Photo',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() {
+                      _profileImage = null;
+                    });
+                  },
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String? _validateFullName(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your full name';
+    }
+    return null;
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your email';
+    }
+    if (!value.endsWith('@university.edu.pk')) {
+      return 'Please use your university email';
+    }
+    return null;
+  }
+
+  String? _validateRollNumber(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your roll number';
+    }
+    return null;
+  }
+
+  String? _validateContactNumber(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter your contact number';
+    }
+    return null;
+  }
+
+  String? _validateDepartment(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please select your department';
+    }
+    return null;
+  }
+
+  String? _validateSemester(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please select your semester';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter a password';
+    }
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    return null;
+  }
+
+  String? _validateConfirmPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please confirm your password';
+    }
+    if (value != _passwordController.text) {
+      return 'Passwords do not match';
+    }
+    return null;
   }
 
   Future<void> _handleRegister() async {
@@ -108,28 +232,63 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 2));
+      final authService = AuthService();
 
-      // NOTE: Backend/Firebase implementation deferred - focusing on frontend first
-      // TODO: Implement actual registration with Firebase (after frontend completion)
-      
-      if (!mounted) return;
-
-      // Mock registration success for frontend development
-      // Navigate to Profile Setup Screen
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const ProfileSetupScreen(),
-        ),
+      // Create user with email and password
+      await authService.signUpWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text,
+        _fullNameController.text.trim(),
       );
+
+      // Get the current user
+      final user = authService.currentUser;
+
+      if (user != null) {
+        // Save additional user data to Firestore
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'email': _emailController.text.trim(),
+          'name': _fullNameController.text.trim(),
+          'rollNumber': _rollNumberController.text.trim(),
+          'contactNumber': _contactNumberController.text.trim(),
+          'department': _selectedDepartment,
+          'semester': _selectedSemester,
+          'interests': _selectedInterests,
+          'createdAt': FieldValue.serverTimestamp(),
+          'isProfileComplete': true,
+          'profileImageUrl': _profileImage != null ? 'pending_upload' : null,
+        });
+
+        if (!mounted) return;
+
+        // Navigate to Dashboard Screen
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      String message = 'An error occurred. Please try again.';
+      if (e.code == 'weak-password') {
+        message = 'The password provided is too weak.';
+      } else if (e.code == 'email-already-in-use') {
+        message = 'An account already exists for that email.';
+      } else if (e.code == 'invalid-email') {
+        message = 'The email address is not valid.';
+      }
+
+      if (mounted) {
+        setState(() {
+          _errorMessage = message;
+        });
+      }
     } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
-      });
+      if (mounted) {
+        setState(() {
+          _errorMessage = 'An unexpected error occurred. Please try again.';
+        });
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -139,76 +298,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  String? _validateFullName(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Full name is required';
-    }
-    if (value.trim().split(' ').length < 2) {
-      return 'Please enter your full name';
-    }
-    return null;
-  }
-
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Email is required';
-    }
-    if (!value.contains('@') || !value.contains('.')) {
-      return 'Please enter a valid email';
-    }
-    if (!value.endsWith('.edu.pk')) {
-      return 'Please use your university email';
-    }
-    return null;
-  }
-
-  String? _validateDepartment(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Department is required';
-    }
-    return null;
-  }
-
-  String? _validateSemester(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Semester is required';
-    }
-    return null;
-  }
-
-  String? _validateRollNumber(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Roll number is required';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    }
-    if (value.length < 8) {
-      return 'Password must be at least 8 characters';
-    }
-    return null;
-  }
-
-  String? _validateConfirmPassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Please confirm your password';
-    }
-    if (value != _passwordController.text) {
-      return 'Passwords do not match';
-    }
-    return null;
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final passwordStrength = _getPasswordStrength(_passwordController.text);
-    final passwordStrengthColor = _getPasswordStrengthColor(passwordStrength);
-    final passwordStrengthValue = _getPasswordStrengthValue(_passwordController.text);
 
     return Scaffold(
       backgroundColor: colorScheme.surface,
@@ -228,17 +320,74 @@ class _RegisterScreenState extends State<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 8),
-                // Title
-                Text(
-                  'Create Account 🎓',
-                  style: GoogleFonts.inter(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
-                  ),
+                // Profile Photo at the top
+                Column(
+                  children: [
+                    GestureDetector(
+                      onTap: _showImagePickerOptions,
+                      child: Stack(
+                        children: [
+                          Container(
+                            width: 120,
+                            height: 120,
+                            margin: const EdgeInsets.only(bottom: 16),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: colorScheme.primary.withOpacity(0.1),
+                              border: Border.all(
+                                color: colorScheme.primary,
+                                width: 2,
+                              ),
+                            ),
+                            child: _profileImage != null
+                                ? ClipOval(
+                                    child: Image.file(
+                                      _profileImage!,
+                                      fit: BoxFit.cover,
+                                      width: 120,
+                                      height: 120,
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.camera_alt_outlined,
+                                    size: 40,
+                                    color: colorScheme.primary,
+                                  ),
+                          ),
+                          if (_profileImage != null)
+                            Positioned(
+                              bottom: 10,
+                              right: 0,
+                              child: Container(
+                                padding: const EdgeInsets.all(6),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: colorScheme.surface,
+                                    width: 2,
+                                  ),
+                                ),
+                                child: const Icon(
+                                  Icons.edit,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'Tap to upload profile photo',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.onSurface.withOpacity(0.6),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
                 // Full Name Field
                 TextFormField(
@@ -283,11 +432,51 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 20),
 
+                // Roll Number Field
+                TextFormField(
+                  controller: _rollNumberController,
+                  keyboardType: TextInputType.text,
+                  validator: _validateRollNumber,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.badge_outlined),
+                    labelText: 'Roll Number',
+                    hintText: 'e.g., 20L-1234',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colorScheme.outline),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                // Contact Number Field
+                TextFormField(
+                  controller: _contactNumberController,
+                  keyboardType: TextInputType.phone,
+                  validator: _validateContactNumber,
+                  decoration: InputDecoration(
+                    prefixIcon: const Icon(Icons.phone_outlined),
+                    labelText: 'Contact Number',
+                    hintText: 'e.g., 03001234567',
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colorScheme.outline),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
                 // Department Dropdown
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedDepartment,
+                  value: _selectedDepartment,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.business_outlined),
+                    prefixIcon: const Icon(Icons.school_outlined),
                     labelText: 'Department',
                     hintText: 'Select Department',
                     border: OutlineInputBorder(
@@ -299,10 +488,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ),
                   items: _departments.map((dept) {
-                    return DropdownMenuItem(
-                      value: dept,
-                      child: Text(dept),
-                    );
+                    return DropdownMenuItem(value: dept, child: Text(dept));
                   }).toList(),
                   onChanged: (value) {
                     setState(() {
@@ -315,9 +501,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Semester Dropdown
                 DropdownButtonFormField<String>(
-                  initialValue: _selectedSemester,
+                  value: _selectedSemester,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.menu_book_outlined),
+                    prefixIcon: const Icon(Icons.calendar_today_outlined),
                     labelText: 'Semester',
                     hintText: 'Select Semester',
                     border: OutlineInputBorder(
@@ -328,10 +514,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderSide: BorderSide(color: colorScheme.outline),
                     ),
                   ),
-                  items: _semesters.map((sem) {
+                  items: _semesters.map((semester) {
                     return DropdownMenuItem(
-                      value: sem,
-                      child: Text('Semester $sem'),
+                      value: semester,
+                      child: Text('Semester $semester'),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -343,15 +529,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // Roll Number Field
-                TextFormField(
-                  controller: _rollNumberController,
-                  keyboardType: TextInputType.text,
-                  validator: _validateRollNumber,
+                // Interests Dropdown
+                DropdownButtonFormField<String>(
+                  value: _selectedInterests.isNotEmpty
+                      ? _selectedInterests.first
+                      : null,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.badge_outlined),
-                    labelText: 'Roll Number',
-                    hintText: 'Enter your roll number',
+                    prefixIcon: const Icon(Icons.interests_outlined),
+                    labelText: 'Interests',
+                    hintText: 'Select your interests',
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -360,6 +546,28 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderSide: BorderSide(color: colorScheme.outline),
                     ),
                   ),
+                  items: const ['Sports', 'Technology', 'Music', 'Arts'].map((
+                    String value,
+                  ) {
+                    return DropdownMenuItem(value: value, child: Text(value));
+                  }).toList(),
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() {
+                        if (_selectedInterests.contains(value)) {
+                          _selectedInterests.remove(value);
+                        } else {
+                          _selectedInterests.add(value);
+                        }
+                      });
+                    }
+                  },
+                  validator: (value) {
+                    if (_selectedInterests.isEmpty) {
+                      return 'Please select at least one interest';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 20),
 
@@ -368,23 +576,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   controller: _passwordController,
                   obscureText: _obscurePassword,
                   validator: _validatePassword,
-                  onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.lock_outline),
                     labelText: 'Password',
                     hintText: '********',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: colorScheme.outline),
-                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: colorScheme.onSurface.withOpacity(0.6),
                       ),
                       onPressed: () {
                         setState(() {
@@ -392,49 +593,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         });
                       },
                     ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colorScheme.outline),
+                    ),
                   ),
                 ),
-                
-                // Password Strength Indicator
-                if (_passwordController.text.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: LinearProgressIndicator(
-                              value: passwordStrengthValue,
-                              backgroundColor: Colors.grey[200],
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                passwordStrengthColor,
-                              ),
-                              minHeight: 4,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            passwordStrength,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: passwordStrengthColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Password Strength: $passwordStrength',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: colorScheme.onSurface.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
                 const SizedBox(height: 20),
 
                 // Confirm Password Field
@@ -446,18 +613,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     prefixIcon: const Icon(Icons.lock_outline),
                     labelText: 'Confirm Password',
                     hintText: '********',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: colorScheme.outline),
-                    ),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscureConfirmPassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: colorScheme.onSurface.withOpacity(0.6),
                       ),
                       onPressed: () {
                         setState(() {
@@ -465,12 +626,20 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         });
                       },
                     ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: colorScheme.outline),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
 
-                // Terms & Conditions Checkbox
+                // Terms and Conditions
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Checkbox(
                       value: _agreeToTerms,
@@ -479,20 +648,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           _agreeToTerms = value ?? false;
                         });
                       },
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                      ),
                     ),
                     Expanded(
-                      child: GestureDetector(
-                        onTap: () {
-                          // TODO: Show Terms & Conditions dialog
-                        },
-                        child: Text(
-                          'I agree to Terms & Conditions',
-                          style: TextStyle(
-                            color: colorScheme.onSurface,
-                            fontSize: 14,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 12.0),
+                        child: RichText(
+                          text: TextSpan(
+                            style: TextStyle(
+                              color: colorScheme.onSurface,
+                              fontSize: 14,
+                            ),
+                            children: [
+                              const TextSpan(text: 'I agree to the '),
+                              TextSpan(
+                                text: 'Terms & Conditions',
+                                style: TextStyle(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const TextSpan(text: ' and '),
+                              TextSpan(
+                                text: 'Privacy Policy',
+                                style: TextStyle(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -502,42 +685,29 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Error Message
                 if (_errorMessage != null) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: colorScheme.errorContainer,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(
-                        color: colorScheme.error,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
+                  const SizedBox(height: 16),
+                  Text(
+                    _errorMessage!,
+                    style: TextStyle(color: colorScheme.error, fontSize: 14),
+                    textAlign: TextAlign.center,
                   ),
                 ],
 
                 const SizedBox(height: 24),
 
                 // Register Button
-                ElevatedButton(
+                FilledButton(
                   onPressed: _isLoading ? null : _handleRegister,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: Colors.white,
+                  style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    elevation: 2,
                   ),
                   child: _isLoading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          width: 24,
+                          height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
@@ -546,40 +716,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           ),
                         )
                       : const Text(
-                          'REGISTER',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          'Create Account',
+                          style: TextStyle(fontSize: 16),
                         ),
                 ),
+                const SizedBox(height: 16),
 
-                const SizedBox(height: 24),
-
-                // Login Link
+                // Already have an account? Sign In
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      'Already registered? ',
-                      style: TextStyle(color: colorScheme.onSurface),
+                      'Already have an account? ',
+                      style: TextStyle(
+                        color: colorScheme.onSurface.withOpacity(0.7),
+                      ),
                     ),
                     TextButton(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginScreen(),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Login Here',
-                        style: TextStyle(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const LoginScreen(),
+                                ),
+                              );
+                            },
+                      child: const Text('Sign In'),
                     ),
                   ],
                 ),
@@ -591,4 +755,3 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
-

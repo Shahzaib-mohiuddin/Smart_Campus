@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 import 'schedule_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -15,9 +16,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
   final int _notificationCount = 3;
 
-  // Mock user data
-  final String _userName = 'Ali';
-  
+  // User data
+  final AuthService _authService = AuthService();
+  Map<String, dynamic>? _userData;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    try {
+      final userData = await _authService.getUserData();
+      if (mounted) {
+        setState(() {
+          _userData = userData;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  String get _userName => _userData?['name'] ?? 'User';
+  String get _userEmail => _userData?['email'] ?? 'user@example.com';
+
   // Get greeting based on time
   String _getGreeting() {
     final hour = DateTime.now().hour;
@@ -33,8 +63,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // Get formatted date
   String _getFormattedDate() {
     final now = DateTime.now();
-    final weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}, ${now.year}';
   }
 
@@ -42,12 +93,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Map<String, dynamic>> get _todayClasses {
     final now = DateTime.now();
     final weekday = now.weekday; // 1 = Monday, 7 = Sunday
-    
+
     // No classes on weekends (Saturday = 6, Sunday = 7)
     if (weekday == 6 || weekday == 7) {
       return [];
     }
-    
+
     // Show classes on weekdays (Monday-Friday: weekday 1-5)
     return [
       {
@@ -194,22 +245,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
               const SizedBox(width: 8),
-              
+
               // Profile Picture
               GestureDetector(
                 onTap: () {
-                  // TODO: Navigate to profile screen
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfileScreen(),
+                    ),
+                  );
                 },
                 child: CircleAvatar(
                   radius: 20,
                   backgroundColor: colorScheme.primary,
-                  child: Text(
-                    _userName[0].toUpperCase(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        )
+                      : Text(
+                          _userName.isNotEmpty
+                              ? _userName[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -222,7 +285,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildGreetingSection(ColorScheme colorScheme) {
     final greeting = _getGreeting();
     final date = _getFormattedDate();
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Align(
@@ -256,7 +319,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildQuickActions(ColorScheme colorScheme) {
     final actions = [
-      {'icon': Icons.calendar_today, 'title': 'My\nSchedule', 'color': Colors.blue},
+      {
+        'icon': Icons.calendar_today,
+        'title': 'My\nSchedule',
+        'color': Colors.blue,
+      },
       {'icon': Icons.library_books, 'title': 'Library', 'color': Colors.green},
       {'icon': Icons.event, 'title': 'Events', 'color': Colors.orange},
       {'icon': Icons.search, 'title': 'Lost\n& Found', 'color': Colors.purple},
@@ -325,19 +392,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: color.withValues(alpha: 0.3),
-            width: 1,
-          ),
+          border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 32,
-              color: color,
-            ),
+            Icon(icon, size: 32, color: color),
             const SizedBox(height: 8),
             Text(
               title,
@@ -359,7 +419,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final now = DateTime.now();
     final weekday = now.weekday; // 1 = Monday, 7 = Sunday
     final isWeekend = weekday == 6 || weekday == 7;
-    
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24.0),
       child: Column(
@@ -406,8 +466,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      weekday == 6 
-                          ? 'No classes on Saturday' 
+                      weekday == 6
+                          ? 'No classes on Saturday'
                           : 'No classes on Sunday',
                       style: GoogleFonts.inter(
                         fontSize: 16,
@@ -430,16 +490,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             )
           else
-            ...classes.map((classItem) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _buildClassCard(classItem, colorScheme),
-                )),
+            ...classes.map(
+              (classItem) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _buildClassCard(classItem, colorScheme),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildClassCard(Map<String, dynamic> classItem, ColorScheme colorScheme) {
+  Widget _buildClassCard(
+    Map<String, dynamic> classItem,
+    ColorScheme colorScheme,
+  ) {
     return GestureDetector(
       onTap: () {
         // TODO: Navigate to class details
@@ -562,10 +627,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ],
           ),
           const SizedBox(height: 16),
-          ..._upcomingEvents.map((event) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildEventCard(event, colorScheme),
-              )),
+          ..._upcomingEvents.map(
+            (event) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _buildEventCard(event, colorScheme),
+            ),
+          ),
         ],
       ),
     );
@@ -642,15 +709,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: colorScheme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
               ),
-              child: const Text(
-                'Register',
-                style: TextStyle(fontSize: 12),
-              ),
+              child: const Text('Register', style: TextStyle(fontSize: 12)),
             ),
           ],
         ),
@@ -666,7 +733,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           _selectedIndex = index;
         });
-        
+
         // Navigate to respective screen based on index
         switch (index) {
           case 0: // Home - already on dashboard
@@ -696,10 +763,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       selectedItemColor: colorScheme.primary,
       unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.5),
       items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.home),
-          label: 'Home',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
         BottomNavigationBarItem(
           icon: Icon(Icons.calendar_today),
           label: 'Schedule',
@@ -708,14 +772,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           icon: Icon(Icons.library_books),
           label: 'Library',
         ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.event),
-          label: 'Events',
-        ),
-        BottomNavigationBarItem(
-          icon: Icon(Icons.more_horiz),
-          label: 'More',
-        ),
+        BottomNavigationBarItem(icon: Icon(Icons.event), label: 'Events'),
+        BottomNavigationBarItem(icon: Icon(Icons.more_horiz), label: 'More'),
       ],
     );
   }
@@ -726,9 +784,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: EdgeInsets.zero,
         children: [
           DrawerHeader(
-            decoration: BoxDecoration(
-              color: colorScheme.primary,
-            ),
+            decoration: BoxDecoration(color: colorScheme.primary),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
@@ -736,31 +792,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: Colors.white,
-                  child: Text(
-                    _userName[0].toUpperCase(),
-                    style: TextStyle(
-                      color: colorScheme.primary,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? CircularProgressIndicator(
+                          color: colorScheme.primary,
+                          strokeWidth: 2,
+                        )
+                      : Text(
+                          _userName.isNotEmpty
+                              ? _userName[0].toUpperCase()
+                              : '?',
+                          style: TextStyle(
+                            color: colorScheme.primary,
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  _userName,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  'ali@university.edu.pk',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 14,
-                  ),
-                ),
+                _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(
+                        _userName,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                _isLoading
+                    ? const SizedBox.shrink()
+                    : Text(
+                        _userEmail,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.8),
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
               ],
             ),
           ),
@@ -772,11 +841,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.person),
-            title: const Text('Profile'),
+            leading: const Icon(Icons.person_outline),
+            title: const Text('My Profile'),
             onTap: () {
               Navigator.pop(context);
-              // TODO: Navigate to profile screen
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProfileScreen()),
+              );
             },
           ),
           ListTile(
@@ -814,10 +886,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const Divider(),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text(
-              'Logout',
-              style: TextStyle(color: Colors.red),
-            ),
+            title: const Text('Logout', style: TextStyle(color: Colors.red)),
             onTap: () async {
               Navigator.pop(context);
               final authService = AuthService();
@@ -835,4 +904,3 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 }
-
