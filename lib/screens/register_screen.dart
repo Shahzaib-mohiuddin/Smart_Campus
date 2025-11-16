@@ -285,7 +285,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Department Dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedDepartment,
+                  initialValue: _selectedDepartment,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.business_outlined),
                     labelText: 'Department',
@@ -315,7 +315,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                 // Semester Dropdown
                 DropdownButtonFormField<String>(
-                  value: _selectedSemester,
+                  initialValue: _selectedSemester,
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.menu_book_outlined),
                     labelText: 'Semester',

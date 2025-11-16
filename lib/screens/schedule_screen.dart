@@ -30,68 +30,18 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       });
     });
     
-    // Load classes from local storage
-    _loadClasses();
+    // Clear any existing classes and load fresh
+    _clearAndLoadClasses();
+  }
+  
+  Future<void> _clearAndLoadClasses() async {
+    // Load existing classes from storage
+    await _loadClasses();
   }
 
   Future<void> _loadClasses() async {
-    final loadedClasses = await _scheduleService.loadClasses();
-    
-    // If no saved classes exist, initialize with default mock data
-    if (loadedClasses.isEmpty) {
-      final now = DateTime.now();
-      final weekdays = [
-        'Monday',
-        'Tuesday',
-        'Wednesday',
-        'Thursday',
-        'Friday',
-        'Saturday',
-        'Sunday'
-      ];
-      final todayDayName = weekdays[now.weekday - 1];
-      final isWeekend = now.weekday == 6 || now.weekday == 7;
-      
-      // Only add default classes on weekdays
-      if (!isWeekend) {
-        _classes = [
-          {
-            'id': '1',
-            'subject': 'Data Structures',
-            'professor': 'Prof. Ahmed Khan',
-            'time': '9:00 - 10:30 AM',
-            'room': 'Room 401, Block A',
-            'color': Colors.blue,
-            'day': todayDayName,
-            'reminder': true,
-          },
-          {
-            'id': '2',
-            'subject': 'Algorithm Design',
-            'professor': 'Prof. Sara Ali',
-            'time': '11:00 - 12:30 PM',
-            'room': 'Room 302, Block B',
-            'color': Colors.green,
-            'day': todayDayName,
-            'reminder': true,
-          },
-          {
-            'id': '3',
-            'subject': 'Database Systems',
-            'professor': 'Prof. Hassan Raza',
-            'time': '2:00 - 3:30 PM',
-            'room': 'Lab 5, Block C',
-            'color': Colors.orange,
-            'day': todayDayName,
-            'reminder': true,
-          },
-        ];
-        // Save default classes to storage
-        await _scheduleService.saveClasses(_classes);
-      }
-    } else {
-      _classes = loadedClasses;
-    }
+    // Load any existing classes from storage
+    _classes = await _scheduleService.loadClasses();
     
     setState(() {
       _isLoading = false;
@@ -334,11 +284,21 @@ class _ScheduleScreenState extends State<ScheduleScreen>
 
   Widget _buildDailyView(ColorScheme colorScheme) {
     // Get today's day name
-    final todayDayName = _getFormattedDate().split(',')[0];
+    final now = DateTime.now();
+    final weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday'
+    ];
+    final todayDayName = weekdays[now.weekday - 1];
     
-    // Filter classes for today's day
+    // Filter classes for today's day (case-insensitive comparison)
     final todayClasses = _classes
-        .where((c) => c['day'] == todayDayName)
+        .where((c) => (c['day'] as String).toLowerCase() == todayDayName.toLowerCase())
         .toList();
 
     // Show message if no classes for today
@@ -426,7 +386,9 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       Map<String, List<Map<String, dynamic>>> weekSchedule,
       ColorScheme colorScheme) {
     final days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-    final times = ['9:00 AM', '11:00 AM', '2:00 PM'];
+    // Show 5 time slots per day in the weekly grid
+    // Adjust these as needed to match your institute timing
+    final times = ['9:00 AM', '10:00 AM', '11:00 AM', '2:00 PM', '3:00 PM'];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -485,20 +447,74 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   }
 
   Widget _buildWeeklyCell(String day, String time, ColorScheme colorScheme) {
-    final dayFullName = {
+    // Helper function to format time for grid comparison
+    String formatTimeForGrid(String timeStr) {
+      // Remove any leading/trailing whitespace
+      timeStr = timeStr.trim();
+      
+      // Handle case where time might be in 24-hour format
+      if (timeStr.contains(':')) {
+        final parts = timeStr.split(':');
+        if (parts.length >= 2) {
+          var hour = int.tryParse(parts[0]) ?? 0;
+          final minutePart = parts[1].split(' ')[0];
+          final period = timeStr.contains('PM') ? 'PM' : 'AM';
+          
+          // Convert to 12-hour format if needed
+          if (hour > 12) {
+            hour -= 12;
+            return '$hour:${minutePart.split(' ')[0]} PM';
+          } else if (hour == 0) {
+            return '12:${minutePart.split(' ')[0]} AM';
+          } else if (hour == 12) {
+            return '12:${minutePart.split(' ')[0]} PM';
+          } else {
+            return '$hour:${minutePart.split(' ')[0]} $period';
+          }
+        }
+      }
+      
+      // Return as is if we can't parse it
+      return timeStr;
+    }
+
+    // Map of short day names to full day names
+    final dayMap = {
       'Mon': 'Monday',
       'Tue': 'Tuesday',
       'Wed': 'Wednesday',
       'Thu': 'Thursday',
       'Fri': 'Friday',
-    }[day];
+      'Sat': 'Saturday',
+      'Sun': 'Sunday',
+    };
+    
+    // Get the full day name from the short name
+    final dayFullName = dayMap[day] ?? day;
 
-    final matchingClass = _classes.firstWhere(
-      (c) => c['day'] == dayFullName && c['time'].contains(time.split(':')[0]),
-      orElse: () => {},
-    );
+    // Find all classes that match both day and time
+    final matchingClasses = _classes.where(
+      (c) {
+        // Check if day matches (case-insensitive)
+        if ((c['day'] as String).toLowerCase() != dayFullName.toLowerCase()) {
+          return false;
+        }
+        
+        // Get the class time string (e.g., '9:00 AM - 10:30 AM')
+        final classTimeStr = c['time'] as String;
+        
+        // Get the start time part (e.g., '9:00 AM')
+        final classStartTime = classTimeStr.split(' - ')[0];
+        
+        // Format the time to match the grid format (e.g., '9:00 AM' -> '9:00 AM')
+        final formattedClassTime = formatTimeForGrid(classStartTime);
+        
+        // Compare with the current grid time
+        return formattedClassTime == time;
+      },
+    ).toList();
 
-    if (matchingClass.isEmpty) {
+    if (matchingClasses.isEmpty) {
       return Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         height: 30,
@@ -510,28 +526,34 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       );
     }
 
-    final subject = matchingClass['subject'] as String;
-    final abbrev = subject.length > 5 ? subject.substring(0, 5) : subject;
-    final color = matchingClass['color'] as Color;
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 4),
-      height: 30,
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.2),
-        border: Border.all(color: color, width: 1),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Center(
-        child: Text(
-          abbrev,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: color,
+    // Build the class indicators for all matching classes
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: matchingClasses.map((matchingClass) {
+        return Container(
+          margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+          decoration: BoxDecoration(
+            color: (matchingClass['color'] as Color?)?.withOpacity(0.2) ??
+                colorScheme.primary.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: (matchingClass['color'] as Color?) ?? colorScheme.primary,
+              width: 1,
+            ),
           ),
-        ),
-      ),
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Center(
+            child: Text(
+              matchingClass['subject']?.toString().substring(0, 1) ?? '?',
+              style: TextStyle(
+                color: (matchingClass['color'] as Color?) ?? colorScheme.primary,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 

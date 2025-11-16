@@ -426,7 +426,7 @@ class _AddEditClassScreenState extends State<AddEditClassScreen> {
 
                 // Section
                 DropdownButtonFormField<String>(
-                  value: _sectionController.text.isEmpty ? null : _sectionController.text,
+                  initialValue: _sectionController.text.isEmpty ? null : _sectionController.text,
                   decoration: InputDecoration(
                     labelText: 'Section',
                     border: OutlineInputBorder(
@@ -453,7 +453,7 @@ class _AddEditClassScreenState extends State<AddEditClassScreen> {
 
                 // Semester
                 DropdownButtonFormField<String>(
-                  value: _selectedSemester,
+                  initialValue: _selectedSemester,
                   decoration: InputDecoration(
                     labelText: 'Semester',
                     border: OutlineInputBorder(

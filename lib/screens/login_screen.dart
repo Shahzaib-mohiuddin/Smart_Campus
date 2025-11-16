@@ -1,8 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
 import 'dashboard_screen.dart';
+
+// Email validation function
+String? _validateEmail(String? value) {
+  if (value == null || value.isEmpty) {
+    return 'Please enter your email';
+  }
+  final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+  if (!emailRegex.hasMatch(value)) {
+    return 'Please enter a valid email address';
+  }
+  return null;
+}
+
+// Password validation function
+String? _validatePassword(String? value) {
+  if (value == null || value.isEmpty) {
+    return 'Please enter your password';
+  }
+  if (value.length < 6) {
+    return 'Password must be at least 6 characters long';
+  }
+  return null;
+}
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -18,6 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
+  final AuthService _authService = AuthService();
 
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
@@ -28,35 +53,41 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(seconds: 2));
+      await _authService.signInWithEmailAndPassword(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
 
-      // NOTE: Backend/Firebase implementation deferred - focusing on frontend first
-      // TODO: Implement actual login with Firebase (after frontend completion)
-      final email = _emailController.text.trim();
-      final password = _passwordController.text;
+      if (!mounted) return;
 
-      // Temporary mock validation for frontend development
-      if (email == 'ali@university.edu.pk' && password == 'password123') {
-        if (!mounted) return;
-
-        // Set user as logged in (local storage only - no backend)
-        await AuthService().setLoggedIn(true);
-
-        // Navigate to Dashboard
-        if (!mounted) return;
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const DashboardScreen()),
-        );
-      } else {
-        setState(() {
-          _errorMessage = 'Invalid email or password';
-        });
+      // Navigate to dashboard on success
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const DashboardScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = 'An error occurred';
+      switch (e.code) {
+        case 'user-not-found':
+          message = 'No user found with this email';
+          break;
+        case 'wrong-password':
+          message = 'Incorrect password';
+          break;
+        case 'invalid-email':
+          message = 'Invalid email address';
+          break;
+        case 'user-disabled':
+          message = 'This account has been disabled';
+          break;
+        default:
+          message = e.message ?? 'Authentication failed';
       }
+      setState(() {
+        _errorMessage = message;
+      });
     } catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = 'An unexpected error occurred. Please try again.';
       });
     } finally {
       if (mounted) {
@@ -65,29 +96,6 @@ class _LoginScreenState extends State<LoginScreen> {
         });
       }
     }
-  }
-
-  String? _validateEmail(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Email is required';
-    }
-    if (!value.contains('@') || !value.contains('.')) {
-      return 'Please enter a valid email';
-    }
-    if (!value.endsWith('.edu.pk')) {
-      return 'Please use your university email';
-    }
-    return null;
-  }
-
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) {
-      return 'Password is required';
-    }
-    if (value.length < 8) {
-      return 'Password must be at least 8 characters';
-    }
-    return null;
   }
 
   @override
@@ -99,11 +107,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
 
     return Scaffold(
-      backgroundColor: colorScheme.surface,
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -112,66 +120,52 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: 20),
+                const SizedBox(height: 48),
+                // App Logo/Icon
+                Icon(Icons.school, size: 100, color: colorScheme.primary),
+                const SizedBox(height: 24),
+                // Title
                 Text(
-                  'Welcome Back! 👋',
-                  style: GoogleFonts.poppins(
-                    fontSize: 28,
+                  'Welcome Back!',
+                  style: textTheme.headlineMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: colorScheme.primary,
+                    color: colorScheme.onSurface,
                   ),
+                  textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Login to continue',
-                  style: GoogleFonts.poppins(
-                    fontSize: 16,
-                    color: colorScheme.secondary,
+                  'Sign in to continue to Smart Campus',
+                  style: textTheme.bodyLarge?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 40),
-
+                const SizedBox(height: 48),
                 // Email Field
                 TextFormField(
                   controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  validator: _validateEmail,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.email_outlined),
+                  decoration: const InputDecoration(
                     labelText: 'Email',
-                    hintText: 'university@edu.pk',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: colorScheme.outline),
-                    ),
+                    prefixIcon: Icon(Icons.email_outlined),
+                    border: OutlineInputBorder(),
                   ),
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  validator: _validateEmail,
                 ),
-                const SizedBox(height: 20),
-
+                const SizedBox(height: 16),
                 // Password Field
                 TextFormField(
                   controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  validator: _validatePassword,
                   decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock_outline),
                     labelText: 'Password',
-                    hintText: '********',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(color: colorScheme.outline),
-                    ),
+                    prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
+                            ? Icons.visibility_off
+                            : Icons.visibility,
                       ),
                       onPressed: () {
                         setState(() {
@@ -179,52 +173,39 @@ class _LoginScreenState extends State<LoginScreen> {
                         });
                       },
                     ),
+                    border: const OutlineInputBorder(),
                   ),
+                  obscureText: _obscurePassword,
+                  validator: _validatePassword,
+                  onFieldSubmitted: (_) => _handleLogin(),
                 ),
-                const SizedBox(height: 12),
-
+                const SizedBox(height: 8),
                 // Forgot Password
                 Align(
                   alignment: Alignment.centerRight,
-                    child: TextButton(
-                      onPressed: () {
-                        // TODO: Implement forgot password screen (Frontend only)
-                      },
-                    child: Text(
-                      'Forgot Password?',
-                      style: TextStyle(color: colorScheme.primary),
-                    ),
+                  child: TextButton(
+                    onPressed: () {
+                      // TODO: Implement forgot password
+                    },
+                    child: const Text('Forgot Password?'),
                   ),
                 ),
-
-                // Error Message
                 if (_errorMessage != null) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 8),
                   Text(
                     _errorMessage!,
                     style: TextStyle(color: colorScheme.error, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ],
-
                 const SizedBox(height: 24),
-
-                // Login Button
-                ElevatedButton(
+                // Sign In Button
+                FilledButton(
                   onPressed: _isLoading ? null : _handleLogin,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    elevation: 2,
-                  ),
                   child: _isLoading
                       ? const SizedBox(
-                          height: 20,
-                          width: 20,
+                          width: 24,
+                          height: 24,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
                             valueColor: AlwaysStoppedAnimation<Color>(
@@ -232,96 +213,43 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                         )
-                      : const Text(
-                          'LOGIN',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                      : const Text('Sign In'),
                 ),
-
                 const SizedBox(height: 24),
-
-                // OR Divider
+                // Divider with "or" text
                 Row(
                   children: [
-                    Expanded(child: Divider(color: colorScheme.outline)),
+                    const Expanded(child: Divider()),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'OR',
-                        style: TextStyle(
-                          color: colorScheme.secondary,
-                          fontWeight: FontWeight.w500,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
                         ),
                       ),
                     ),
-                    Expanded(child: Divider(color: colorScheme.outline)),
+                    const Expanded(child: Divider()),
                   ],
                 ),
-
                 const SizedBox(height: 24),
-
-                // Google Login Button
-                OutlinedButton.icon(
-                  onPressed: () {
-                    // TODO: Implement Google Sign In UI (Frontend - backend later)
-                  },
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    side: BorderSide(color: colorScheme.outline),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  icon: Container(
-                    width: 20,
-                    height: 20,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Center(
-                      child: Text(
-                        'G',
-                        style: TextStyle(
-                          color: Colors.blue.shade600,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ),
-                  label: const Text('Continue with Google'),
-                ),
-
-                const SizedBox(height: 24),
-
-                // Register Link
+                // Sign Up Link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Text(
-                      "Don't have an account? ",
-                      style: TextStyle(color: colorScheme.onSurface),
-                    ),
+                    Text("Don't have an account? ", style: textTheme.bodyLarge),
                     TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const RegisterScreen(),
-                          ),
-                        );
-                      },
-                      child: Text(
-                        'Register Here',
-                        style: TextStyle(
-                          color: colorScheme.primary,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => const RegisterScreen(),
+                                ),
+                              );
+                            },
+                      child: const Text('Sign Up'),
                     ),
                   ],
                 ),

@@ -13,7 +13,7 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
-  int _notificationCount = 3;
+  final int _notificationCount = 3;
 
   // Mock user data
   final String _userName = 'Ali';
@@ -821,7 +821,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: () async {
               Navigator.pop(context);
               final authService = AuthService();
-              await authService.logout();
+              await authService.signOut();
               if (!mounted) return;
               Navigator.pushAndRemoveUntil(
                 context,
